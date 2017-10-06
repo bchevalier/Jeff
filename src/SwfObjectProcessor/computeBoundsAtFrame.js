@@ -72,17 +72,15 @@ function computeInstanceBounds(child, symbols, sprites, frame) {
 
 	var filters = child.filters && child.filters[frame];
 	if (filters) {
-		var maxBlurX = 0;
-		var maxBlurY = 0;
 		for (var f = 0; f < filters.length; f += 1) {
 			var filter = filters[f];
-			maxBlurX = Math.max(filter.blurX, maxBlurX);
-			maxBlurY = Math.max(filter.blurY, maxBlurY);
+			var radiusX = filter.blurX || 0;
+			var radiusY = filter.blurY || 0;
+			bounds.left   -= radiusX;
+			bounds.top    -= radiusY;
+			bounds.right  += radiusX;
+			bounds.bottom += radiusY;
 		}
-		bounds.left   -= maxBlurX / 2;
-		bounds.top    -= maxBlurY / 2;
-		bounds.right  += maxBlurX / 2;
-		bounds.bottom += maxBlurY / 2;
 	}
 
 	return bounds;

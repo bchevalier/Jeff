@@ -286,8 +286,11 @@ CanvasRenderer.prototype._renderSymbol = function (globalCanvas, globalContext, 
 				case 'bevel':
 					filters.bevel(localContext, filter, dim, bounds);
 					break;
+				case 'gradient glow':
+					filters.glow(localContext, filter, dim, bounds);
+					break;
 				default:
-					console.warn('CanvasRenderer.renderSymbol: filter', filter.type, 'not supported');
+					console.warn('[CanvasRenderer.renderSymbol] Filter', filter.type, 'not supported. (' + id + ')');
 				}
 			}
 		}

@@ -196,7 +196,7 @@ module.exports = function formatSpritesForExport(spriteImages, spriteProperties,
 		while (true) {
 			var atlas = renderAtlas(spriteImages, spriteProperties, powerOf2Images, maxImageDim, exportRatio);
 			if (atlas) {
-				// succesfully created the atlas!
+				// successfully created the atlas!
 
 				// TODO: generate several atlases if one atlas cannot fit everything
 				newSpriteImages.push(new ImageData('atlas', atlas, Object.keys(spriteImages)));

@@ -38,6 +38,11 @@ function removeIgnoredImages(symbols, sprites, spriteImages, ignoredImages) {
 	}
 
 	for (var spriteId in spriteImages) {
+		var sprite = sprites[spriteId];
+		if (sprite.className && !sprite.className.match(ignoredImages)) {
+			continue;
+		}
+
 		if (!accessibleSprites[spriteId]) {
 			delete spriteImages[spriteId];
 		}
