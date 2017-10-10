@@ -131,7 +131,7 @@ Jeff.prototype._extract = function (cb) {
 	this._fileHeaderInfo = {};
 
 	// Making sure the input directory exists
-	if (!fs.existsSync(this._options.inputDir)) {
+	if (this._options.outDir && !fs.existsSync(this._options.inputDir)) {
 		throw new Error('Directory not found: ' + this._options.inputDir);
 	}
 

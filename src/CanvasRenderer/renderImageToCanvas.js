@@ -44,15 +44,11 @@ function inflate(strdata, onData) {
 	});
 }
 
-function translateJpg(swfObject, whenDone) {
-	// Image creation
-	var uri = 'data:image/jpeg;base64,' + new Buffer(swfObject.data).toString('base64');
-	var image = new Image();
-	image.src = uri;
-
+function _translateJpg(image, swfObject, whenDone) {
 	// Writing image into canvas in order to manipulate its pixels
 	var width   = image.width;
 	var height  = image.height;
+
 	var canvas  = getCanvas(width, height);
 	var context = canvas.getContext('2d');
 	context.drawImage(image, 0, 0);
@@ -79,6 +75,21 @@ function translateJpg(swfObject, whenDone) {
 	}
 
 	whenDone(swfObject, canvas);
+}
+
+function translateJpg(swfObject, whenDone) {
+	// Image creation
+	var uri = 'data:image/jpeg;base64,' + Buffer.from(swfObject.data).toString('base64');
+	var image = new Image();
+	image.src = uri;
+
+	if (typeof window !== 'undefined') {
+		image.onload = function () {
+			_translateJpg(image, swfObject, whenDone);
+		}
+	} else {
+		_translateJpg(image, swfObject, whenDone);
+	}
 }
 
 function translatePng(swfObject, whenDone) {

@@ -951,6 +951,9 @@ function collapseSymbol(symbol, symbols, sprites, prerenderBlendings) {
 		}
 
 		var childSymbol = symbols[childId];
+if (!childSymbol) {
+	console.error('not supported!', childId)
+}
 		if (childSymbol.className || child.name) {
 			newChildren.push(child);
 			continue;
