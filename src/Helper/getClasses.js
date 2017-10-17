@@ -11,10 +11,18 @@ function getClasses(swfObjects, exportMain) {
 		var classes = swfObject.symbolClasses;
 		if (classes) {
 			for (var className in classes) {
+				var symbolId = classes[className];
+				if (symbolId === 0) {
+					// For some reason, sometimes the main timeline get exported as a class
+					// Making sure it is not the case
+					continue;
+				}
+
 				if (!classList[className]) {
 					classList[className] = [];
-				} 
-				classList[className].push(classes[className]);
+				}
+
+				classList[className].push(symbolId);
 			}
 		}
 

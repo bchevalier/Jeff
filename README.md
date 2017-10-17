@@ -25,14 +25,59 @@ Made in [Wizcorp](http://www.wizcorp.jp).
 ## Install
 Go into JEFF directory and do:
 
-```
-> npm install electron -g
-> npm install
+```shell
+npm install
 ```
 
-## Use
-Go into JEFF directory and do:
-	`electron . -s mySwf.swf -o outputPath`
+If you want to use electron GUI, you also need electron installed:
+```shell
+npm install electron -g
+```
+
+
+## Usage
+
+Command line:
+
+```shell
+jeff -s mySwf.swf
+```
+
+Electron GUI:
+```shell
+electron . -s mySwf.swf -o outputPath
+```
+
+API:
+
+```javascript
+var jeff = require('jeff');
+
+// Writing extracted data in current folder
+var options = {
+	source: 'mySwf.swf',
+	outDir: '.'
+};
+
+jeff(options);
+
+
+// Returning extracted data in a callback
+var options = {
+	source: 'mySwf.swf',
+	returnData: true
+};
+
+jeff(options, function (error, stats, extractedData) {
+	// Uncovering conversion stats
+	var nbFilesConverted = stats.files;
+	var nbErrors         = stats.errors;
+
+	// Fetching extracted data
+	var image = extractedData.images;
+	var data  = extractedData.data;
+});
+```
 
 You can see all available options [here](https://github.com/Wizcorp/Jeff/blob/electron/bin/jeff).
 

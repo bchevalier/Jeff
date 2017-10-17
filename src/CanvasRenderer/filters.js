@@ -269,8 +269,8 @@ function glow(context, params, dim, bounds, color, angle, distance, gradientColo
 
 	var inner = params.inner;
 
-	var blurX = params.blurX;
-	var blurY = params.blurY;
+	var blurX = Math.round(params.blurX);
+	var blurY = Math.round(params.blurY);
 	var nbPasses  = params.numPasses;
 
 	var dx = Math.round(Math.cos(angle) * distance);
