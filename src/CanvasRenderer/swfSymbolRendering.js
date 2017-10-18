@@ -1,4 +1,3 @@
-var getCanvas      = require('./GetCanvas');
 var CanvasRenderer = require('./main');
 var filters        = require('./filters');
 var blendModes     = require('./blendModes');
@@ -104,11 +103,8 @@ CanvasRenderer.prototype._renderSymbol = function (globalCanvas, globalContext, 
 
 	var localCanvas, localContext;
 	if (hasPixelManipulation) {
-		localCanvas  = getCanvas();
+		localCanvas  = this._getCanvas(globalCanvas.width, globalCanvas.height);
 		localContext = localCanvas.getContext('2d');
-
-		localCanvas.width  = globalCanvas.width;
-		localCanvas.height = globalCanvas.height;
 	} else {
 		localCanvas  = globalCanvas;
 		localContext = globalContext;
@@ -171,19 +167,13 @@ CanvasRenderer.prototype._renderSymbol = function (globalCanvas, globalContext, 
 				// Masking
 
 				// Creating an intermediary canvas to apply the mask
-				var maskCanvas  = getCanvas();
+				var maskCanvas  = this._getCanvas(localCanvas.width, localCanvas.height);
 				var maskContext = maskCanvas.getContext('2d');
-
-				maskCanvas.width  = localCanvas.width;
-				maskCanvas.height = localCanvas.height;
 
 				this._renderSymbol(maskCanvas, maskContext, matrix, color, child, frame - child.frames[0], true);
 
-				var clipCanvas  = getCanvas();
+				var clipCanvas  = this._getCanvas(localCanvas.width, localCanvas.height);
 				var clipContext = clipCanvas.getContext('2d');
-
-				clipCanvas.width  = localCanvas.width;
-				clipCanvas.height = localCanvas.height;
 
 				// To support masked layers with blend mode
 				clipContext.drawImage(localCanvas, 0, 0);
@@ -286,8 +276,11 @@ CanvasRenderer.prototype._renderSymbol = function (globalCanvas, globalContext, 
 				case 'bevel':
 					filters.bevel(localContext, filter, dim, bounds);
 					break;
+				case 'gradient glow':
+					filters.glow(localContext, filter, dim, bounds);
+					break;
 				default:
-					console.warn('CanvasRenderer.renderSymbol: filter', filter.type, 'not supported');
+					console.warn('[CanvasRenderer.renderSymbol] Filter', filter.type, 'not supported. (' + id + ')');
 				}
 			}
 		}

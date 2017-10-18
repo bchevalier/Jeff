@@ -12,7 +12,8 @@ function filterClasses(classList, exclusiveList, ignoreList, ignoreExpression) {
 		}
 	} else {
 		for (className in classList) {
-			newClassList[className] = classList[className][0];
+			var symbolId = classList[className][0];
+			newClassList[className] = symbolId;
 		}
 	}
 

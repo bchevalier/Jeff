@@ -419,7 +419,6 @@ function generateChildren(symbol, items) {
 			var colors     = [];
 			var filters    = [];
 			var blendModes = [];
-			var names      = [];
 
 			var nFrames = animData.length;
 			for (f = 0; f < nFrames; f += 1) {
@@ -460,7 +459,9 @@ function generateChildren(symbol, items) {
 				// Creating a new sequence of transforms
 				transforms = [];
 				colors     = [];
-				start      = nextFrame;
+				filters    = [];
+				blendModes = [];
+				start = nextFrame;
 			}
 		}
 	}

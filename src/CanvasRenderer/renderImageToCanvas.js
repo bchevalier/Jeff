@@ -1,38 +1,11 @@
+var CanvasRenderer = require('./main');
+var zlib  = require('zlib');
 
-var zlib      = require('zlib');
-var getCanvas = require('./GetCanvas');
-var Image     = require('./Image');
-
-function renderImageToCanvas(swfObject, whenDone) {
+CanvasRenderer.prototype._renderImageToCanvas = function (swfObject, whenDone) {
 	if (swfObject.colorData) {
-		renderPng(swfObject, whenDone);
+		this.renderPng(swfObject, whenDone);
 	} else {
-		renderJpg(swfObject, whenDone);
-	}
-}
-module.exports = renderImageToCanvas;
-
-function renderPng(swfObject, whenDone) {
-	if (!swfObject.colorData) {
-		// Should never happen unless caller is wrong
-		throw new Error('Invalid data for PNG file');
-	}
-
-	inflate(swfObject.colorData, function (buffer) {
-		swfObject.data = buffer;
-		translatePng(swfObject, whenDone);
-	});
-}
-
-function renderJpg(swfObject, whenDone) {
-	var self = this;
-	if (swfObject.alphaData) {
-		inflate(swfObject.alphaData, function (buffer) {
-			swfObject.inflatedAlphaData = buffer;
-			translateJpg(swfObject, whenDone);
-		});
-	} else {
-		translateJpg(swfObject, whenDone);
+		this.renderJpg(swfObject, whenDone);
 	}
 }
 
@@ -44,16 +17,37 @@ function inflate(strdata, onData) {
 	});
 }
 
-function translateJpg(swfObject, whenDone) {
-	// Image creation
-	var uri = 'data:image/jpeg;base64,' + new Buffer(swfObject.data).toString('base64');
-	var image = new Image();
-	image.src = uri;
+CanvasRenderer.prototype.renderPng = function (swfObject, whenDone) {
+	if (!swfObject.colorData) {
+		// Should never happen unless caller is wrong
+		throw new Error('Invalid data for PNG file');
+	}
 
+	var self = this;
+	inflate(swfObject.colorData, function (buffer) {
+		swfObject.data = buffer;
+		self.translatePng(swfObject, whenDone);
+	});
+}
+
+CanvasRenderer.prototype.renderJpg = function (swfObject, whenDone) {
+	if (swfObject.alphaData) {
+		var self = this;
+		inflate(swfObject.alphaData, function (buffer) {
+			swfObject.inflatedAlphaData = buffer;
+			self.translateJpg(swfObject, whenDone);
+		});
+	} else {
+		this.translateJpg(swfObject, whenDone);
+	}
+}
+
+CanvasRenderer.prototype._translateJpg = function (image, swfObject, whenDone) {
 	// Writing image into canvas in order to manipulate its pixels
 	var width   = image.width;
 	var height  = image.height;
-	var canvas  = getCanvas(width, height);
+
+	var canvas  = this._getCanvas(width, height);
 	var context = canvas.getContext('2d');
 	context.drawImage(image, 0, 0);
 
@@ -81,10 +75,26 @@ function translateJpg(swfObject, whenDone) {
 	whenDone(swfObject, canvas);
 }
 
-function translatePng(swfObject, whenDone) {
+CanvasRenderer.prototype.translateJpg = function (swfObject, whenDone) {
+	// Image creation
+	var uri = 'data:image/jpeg;base64,' + Buffer.from(swfObject.data).toString('base64');
+	var image = new this._Image();
+	image.src = uri;
+
+	if (typeof window !== 'undefined') {
+		var self = this;
+		image.onload = function () {
+			self._translateJpg(image, swfObject, whenDone);
+		}
+	} else {
+		this._translateJpg(image, swfObject, whenDone);
+	}
+}
+
+CanvasRenderer.prototype.translatePng = function (swfObject, whenDone) {
 	var width  = swfObject.width;
 	var height = swfObject.height;
-	var canvas = getCanvas(width, height);
+	var canvas = this._getCanvas(width, height);
 	var context = canvas.getContext('2d');
 
 	var colorTableSize = swfObject.colorTableSize || 0;

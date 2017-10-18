@@ -1,4 +1,3 @@
-var getCanvas      = require('./GetCanvas');
 var CanvasRenderer = require('./main');
 
 function transformPoint(t, x, y) {
@@ -196,10 +195,8 @@ CanvasRenderer.prototype._fillShapes = function (context, canvas, shapes, transf
 	} else if (fill.type === 'pattern') {
 		matrix = fill.matrix;
 
-		var imgCanvas  = getCanvas();
+		var imgCanvas  = this._getCanvas(canvas.width, canvas.height);
 		var imgContext = imgCanvas.getContext('2d');
-		imgCanvas.width  = canvas.width;
-		imgCanvas.height = canvas.height;
 
 		imgContext.transform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
 		imgContext.transform(matrix.scaleX, matrix.skewX, matrix.skewY, matrix.scaleY, matrix.moveX, matrix.moveY);

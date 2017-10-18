@@ -1,4 +1,3 @@
-var getCanvas       = require('../CanvasRenderer/GetCanvas');
 var BoxPartitioning = require('./BoxPartitioning');
 
 // margin between assets in atlasmaps
@@ -98,25 +97,23 @@ function computeAtlasLayout(spriteDims, powerOf2Images, maxAtlasDim, exportRatio
 	return { width: bestPartitioning.occupiedBounds.w, height: bestPartitioning.occupiedBounds.h };
 }
 
-function renderAtlas(spriteImages, spriteDims, powerOf2Images, maxImageDim, exportRatio) {
+function renderAtlas(getCanvas, spriteImages, spriteDims, powerOf2Images, maxImageDim, exportRatio) {
 	var atlasDim = computeAtlasLayout(spriteDims, powerOf2Images, maxImageDim, exportRatio);
 	if (!atlasDim) {
 		return;
 	}
 
 	if (atlasDim.width === 0 || atlasDim.height === 0) {
-		var emptyCanvas = getCanvas();
-		emptyCanvas.width  = 0;
-		emptyCanvas.height = 0;
-		return emptyCanvas;
+		return getCanvas(0, 0);
 	}
 
 	// Drawing each sprite into atlas
-	var atlas   = getCanvas();
+	var atlasWidth  = powerOf2Images? nextHighestPowerOfTwo(atlasDim.width)  : atlasDim.width;
+	var atlasHeight = powerOf2Images? nextHighestPowerOfTwo(atlasDim.height) : atlasDim.height;
+
+	var atlas   = getCanvas(atlasWidth , atlasHeight);
 	var context = atlas.getContext('2d');
 
-	atlas.width  = powerOf2Images? nextHighestPowerOfTwo(atlasDim.width)  : atlasDim.width;
-	atlas.height = powerOf2Images? nextHighestPowerOfTwo(atlasDim.height) : atlasDim.height;
 
 	var showEmptySpace = false;
 	var showBounds     = false;
@@ -155,17 +152,15 @@ function renderAtlas(spriteImages, spriteDims, powerOf2Images, maxImageDim, expo
 	return atlas;
 }
 
-function augmentToNextPowerOf2(spriteImages) {
+function augmentToNextPowerOf2(spriteImages, getCanvas) {
 	for (var spriteId in spriteImages) {
 		var canvas = spriteImages[spriteId];
 		var width  = nextHighestPowerOfTwo(canvas.width);
 		var height = nextHighestPowerOfTwo(canvas.height);
 
 		// Creating a canvas with power of 2 dimensions
-		var po2Canvas  = getCanvas();
+		var po2Canvas  = getCanvas(width, height);
 		var po2Context = po2Canvas.getContext('2d');
-		po2Canvas.width  = width;
-		po2Canvas.height = height;
 		po2Context.drawImage(canvas, 0, 0);
 
 		// Replacing non-power of 2 canvas by power of 2 canvas
@@ -189,14 +184,14 @@ function findImageData(image, newSpriteImages) {
 	return null
 }
 
-module.exports = function formatSpritesForExport(spriteImages, spriteProperties, createAtlas, powerOf2Images, maxImageDim, classGroupName) {
+module.exports = function formatSpritesForExport(getCanvas, spriteImages, spriteProperties, createAtlas, powerOf2Images, maxImageDim, classGroupName) {
 	var newSpriteImages = [];
 	if (createAtlas) {
 		var exportRatio = 1;
 		while (true) {
-			var atlas = renderAtlas(spriteImages, spriteProperties, powerOf2Images, maxImageDim, exportRatio);
+			var atlas = renderAtlas(getCanvas, spriteImages, spriteProperties, powerOf2Images, maxImageDim, exportRatio);
 			if (atlas) {
-				// succesfully created the atlas!
+				// successfully created the atlas!
 
 				// TODO: generate several atlases if one atlas cannot fit everything
 				newSpriteImages.push(new ImageData('atlas', atlas, Object.keys(spriteImages)));
@@ -216,7 +211,7 @@ module.exports = function formatSpritesForExport(spriteImages, spriteProperties,
 		}
 	} else {
 		if (powerOf2Images) {
-			augmentToNextPowerOf2(spriteImages);
+			augmentToNextPowerOf2(spriteImages, getCanvas);
 		}
 		for (var spriteId in spriteImages) {
 			var image = spriteImages[spriteId];

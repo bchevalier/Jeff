@@ -1,5 +1,3 @@
-var renderImageToCanvas = require('./renderImageToCanvas.js');
-
 /* List of known issues:
 	- drawImage does implicit conversion of image position to integer
 	(due to node canvas, issue #395 on https://github.com/LearnBoost/node-canvas)
@@ -33,8 +31,6 @@ var renderImageToCanvas = require('./renderImageToCanvas.js');
 // vectorial rendering library.
 
 function CanvasRenderer() {
-	this._renderImageToCanvas = renderImageToCanvas;
-
 	this._rendering = false;
 	this._callback  = undefined;
 	this._images    = {};
@@ -55,6 +51,8 @@ CanvasRenderer.prototype._init = function (extractor, callback) {
 	this._images    = {};
 	this._extractor = extractor;
 	this._options   = extractor._options;
+	this._getCanvas = extractor._getCanvas;
+	this._Image     = extractor._Image;
 };
 
 // CanvasRenderer's only public method/attribute

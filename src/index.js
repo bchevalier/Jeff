@@ -17,12 +17,21 @@ var JSON_WRITE_OPTIONS = { encoding:'binary' };
 var DEFAULT_FRAME_RATE = 25;
 
 // Jeff's only API method
-module.exports = function extractSwf(exportParams, cb) {
-	var jeff = new Jeff(exportParams);
+module.exports = function extractSwf(exportParams, cb, getCanvas, Image) {
+	var jeff = new Jeff(exportParams, getCanvas, Image);
 	jeff._extract(cb);
 };
 
-function Jeff(options) {
+function Jeff(options, getCanvas, Image) {
+	// If not specified Jeff will use default canvas getter and Image constructor
+	this._getCanvas = getCanvas || function (w, h) {
+		var Canvas = document.createElement('canvas');
+		Canvas.width  = (w === null || w === undefined) ? 300 : w;
+		Canvas.height = (h === null || h === undefined) ? 150 : h;
+		return Canvas;
+	};
+	this._Image = Image || window.Image;
+
 	this._parser   = new SwfParser();      // Parser of swf files
 	this._renderer = new CanvasRenderer(); // Renderer for swf images and vectorial shapes
 
@@ -69,7 +78,7 @@ function JeffOptions(params) {
 	this.powerOf2Images      = params.powerOf2Images      || false;
 	this.maxImageDim         = params.maxImageDim         || 2048;
 	this.beautify            = params.beautify            || false;
-	this.collapse             = params.collapse           || false;
+	this.collapse            = params.collapse           || false;
 	this.prerenderBlendings  = params.prerenderBlendings  || false;
 
 	// Advanced options
@@ -131,12 +140,12 @@ Jeff.prototype._extract = function (cb) {
 	this._fileHeaderInfo = {};
 
 	// Making sure the input directory exists
-	if (!fs.existsSync(this._options.inputDir)) {
+	if (this._options.inputDir && !fs.existsSync(this._options.inputDir)) {
 		throw new Error('Directory not found: ' + this._options.inputDir);
 	}
 
 	// Creating output directory if inexistant
-	if (!fs.existsSync(this._options.outDir)) {
+	if (this._options.outDir && !fs.existsSync(this._options.outDir)) {
 		fs.mkdirsSync(this._options.outDir);
 	}
 
@@ -363,7 +372,9 @@ Jeff.prototype._extractClassGroup = function (spriteImages, spriteProperties) {
 
 	var imageArray = [];
 	if (this._options.ignoreImages !== true) { // could be a regular expression
-		if (this._options.createAtlas) {
+		var createAtlas = this._options.createAtlas;
+
+		if (createAtlas) {
 			exportData.meta.imageMargin = 1;
 		}
 
@@ -372,10 +383,12 @@ Jeff.prototype._extractClassGroup = function (spriteImages, spriteProperties) {
 			helper.removeIgnoredImages(this._symbols, this._sprites, spriteImages, this._options.ignoreImages);
 		}
 
+		var sprites = exportItemsData.sprites;
 		var spritesImages = helper.formatSpritesForExport(
+			this._getCanvas,
 			spriteImages,
 			spriteProperties,
-			this._options.createAtlas,
+			createAtlas,
 			this._options.powerOf2Images,
 			this._options.maxImageDim,
 			this._classGroupName
@@ -383,7 +396,6 @@ Jeff.prototype._extractClassGroup = function (spriteImages, spriteProperties) {
 
 		// Making link between sprites and images
 		var images = new Array(spritesImages.length);
-		var sprites = exportItemsData.sprites;
 		for (var i = 0; i < spritesImages.length; i += 1) {
 			var spritesImage = spritesImages[i];
 			var alias = this._generateImageName(spritesImage.name);
@@ -393,7 +405,16 @@ Jeff.prototype._extractClassGroup = function (spriteImages, spriteProperties) {
 			var spriteIds = spritesImage.sprites;
 			for (var s = 0; s < spriteIds.length; s += 1) {
 				var spriteId = spriteIds[s];
-				sprites[spriteId].image = i;
+				var sprite = sprites[spriteId];
+				sprite.image = i;
+
+				if (createAtlas) {
+					var atlasDimensions = spriteProperties[spriteId];
+					sprite.sx = atlasDimensions.sx;
+					sprite.sy = atlasDimensions.sy;
+					sprite.sw = atlasDimensions.sw;
+					sprite.sh = atlasDimensions.sh;
+				}
 			}
 
 			imageArray[i] = spritesImage.image;
@@ -424,29 +445,20 @@ Jeff.prototype._extractClassGroup = function (spriteImages, spriteProperties) {
 };
 
 Jeff.prototype._generateImageName = function (imgName) {
-	var imgPath = this._fileGroupName;
-
-	if (this._options.scope === 'classes') {
-		imgPath = path.join(imgPath, this._classGroupName);
-	}
-
-	// TODO: find a more elegant way to deal with this case
-	if (!this._options.createAtlas && (!this._options.onlyOneFrame || Object.keys(this._classGroupList).length > 1)) {
-		// The image is not unique, its name would have to be more specific
-		imgPath = path.join(imgPath, imgName);
-	}
-
-	if (this._options.exportAtRoot) {
-		imgPath = path.basename(imgPath);
-	}
-
-	return imgPath + '.png';
+	var imgPath = (this._options.scope === 'classes') ? this._classGroupName : '';
+	return path.join(imgPath, imgName) + '.png';
 };
 
 Jeff.prototype._writeImagesToDisk = function (spritesImages) {
 	for (var i = 0; i < spritesImages.length; i += 1) {
 		var spritesImage = spritesImages[i];
-		var imagePath = path.join(this._options.outDir, spritesImage.name);
+
+		var imageName = path.join(this._fileGroupName, spritesImage.name);
+		if (this._options.exportAtRoot) {
+			imageName = path.basename(imageName);
+		}
+
+		var imagePath = path.join(this._options.outDir, imageName);
 		this._canvasToPng(imagePath, spritesImage.image);
 	}
 };
