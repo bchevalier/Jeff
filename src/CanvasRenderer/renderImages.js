@@ -402,8 +402,9 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 
 			childId = child.id;
 			if (symbolElements[childId]) {
-				continue
+				continue;
 			}
+
 			symbolElements[childId] = true;
 
 			if (!elementSymbols[childId]) {
@@ -509,7 +510,7 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 				break;
 			}
 
-			childElement = sprites[childId];
+			var childElement = sprites[childId];
 			if (!childElement) {
 				containsSymbol = true;
 				isSymbolStatic  = false;
@@ -696,12 +697,20 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 
 	}
 
+	var newSpriteId = symbolIds[symbolIds.length - 1];
+	this.prerenderFilteredSymbols(symbols, sprites, imageMap, spriteProperties, newSpriteId);
+};
 
+
+CanvasRenderer.prototype.prerenderFilteredSymbols = function (symbols, sprites, imageMap, spriteProperties, newSpriteId) {
 	// Making list of unused elements to remove from list of symbols and sprites
 	// And prerendering sprites that have a filters applied
 	// for improved runtime performance
 	var usedElements = {};
-	var newSpriteId = symbolIds[symbolIds.length - 1];
+
+	var frame = 0;
+	var ratio = this._extractor._fileGroupRatio;
+	var prerenderBlendings = this._extractor._options.prerenderBlendings;
 
 	// list of prerendered filtered elements per 
 	var prerenderedFilteredElements = {};
@@ -817,6 +826,8 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 	}
 };
 
+
+
 function transformMultiplication(transformA, transformB) {
 	var a0 = transformA[0];
 	var b0 = transformA[1];
@@ -840,7 +851,7 @@ function transformMultiplication(transformA, transformB) {
 		a0 * e1 + c0 * f1 + e0,
 		b0 * e1 + d0 * f1 + f0
 	];
-};
+}
 
 function colorMultiplication(colorA, colorB) {
 	var rm0 = colorA[0];

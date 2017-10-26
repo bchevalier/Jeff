@@ -260,7 +260,7 @@ function blurAlphaVertical(pixelsIn, pixelsOut, radius1, w, h) {
 }
 
 function glow(context, params, dim, bounds, color, angle, distance, gradientColors, gradientRatios) {
-	/* jshint maxstatements: 100 */
+	/* jshint maxstatements: 130 */
 	/* jshint maxdepth: 10 */
 	var left   = dim.left;
 	var top    = dim.top;
@@ -410,16 +410,16 @@ function glow(context, params, dim, bounds, color, angle, distance, gradientColo
 		var gradients = new Array(maxGradient);
 		var tier = 0;
 		var lastTier = gradientColors.length - 1;
-		for (var g = 0; g < maxGradient; g += 1) {
-			var r = 255 * g / maxGradient;
-			while (gradientRatios[tier] < r && tier < lastTier) {
+		for (var gr = 0; gr < maxGradient; gr += 1) {
+			var ra = 255 * gr / maxGradient;
+			while (gradientRatios[tier] < ra && tier < lastTier) {
 				tier += 1;
 			}
 
 			var ratioB = gradientRatios[tier];
 			var ratioA = (tier === 0) ? ratioB : gradientRatios[tier - 1];
 			var denominator = (ratioB - ratioA) || 1;
-			var ratio = (r - ratioA) / denominator;
+			var ratio = (ra - ratioA) / denominator;
 			if (ratio < 0) {
 				ratio = 0;
 			} else if (ratio > 1) {
@@ -428,7 +428,7 @@ function glow(context, params, dim, bounds, color, angle, distance, gradientColo
 
 			var colorB = gradientColors[tier];
 			var colorA = (tier === 0) ? colorB : gradientColors[tier - 1];
-			gradients[g] = [
+			gradients[gr] = [
 				Math.round(colorA.red   * (1 - ratio) + colorB.red   * ratio),
 				Math.round(colorA.green * (1 - ratio) + colorB.green * ratio),
 				Math.round(colorA.blue  * (1 - ratio) + colorB.blue  * ratio),
@@ -439,13 +439,13 @@ function glow(context, params, dim, bounds, color, angle, distance, gradientColo
 		var lastGradient = maxGradient - 1;
 		var gradientCoeff = lastGradient / 255;
 		for (i = 0; i < nBytes; i += 4) {
-			var c = dstPixels[i + 3] / 255;
-			var a = pixelData[i + 3];
-			var color = gradients[Math.min(Math.floor(gradientCoeff * a), lastGradient)];
-			tmpData[i]     = (1 - c) * color[0] + c * pixelData[i];
-			tmpData[i + 1] = (1 - c) * color[1] + c * pixelData[i + 1];
-			tmpData[i + 2] = (1 - c) * color[2] + c * pixelData[i + 2];
-			tmpData[i + 3] = (1 - c) * color[3] + c * a;
+			var c1 = dstPixels[i + 3] / 255;
+			var c2 = pixelData[i + 3];
+			var gradientColor = gradients[Math.min(Math.floor(gradientCoeff * c2), lastGradient)];
+			tmpData[i]     = (1 - c1) * gradientColor[0] + c1 * pixelData[i];
+			tmpData[i + 1] = (1 - c1) * gradientColor[1] + c1 * pixelData[i + 1];
+			tmpData[i + 2] = (1 - c1) * gradientColor[2] + c1 * pixelData[i + 2];
+			tmpData[i + 3] = (1 - c1) * gradientColor[3] + c1 * c2;
 		}
 	} else {
 		// Rewriting the content of the buffer

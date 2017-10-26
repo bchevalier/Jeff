@@ -7,7 +7,7 @@ CanvasRenderer.prototype._renderImageToCanvas = function (swfObject, whenDone) {
 	} else {
 		this.renderJpg(swfObject, whenDone);
 	}
-}
+};
 
 function inflate(strdata, onData) {
 	var data = new Buffer(strdata);
@@ -28,7 +28,7 @@ CanvasRenderer.prototype.renderPng = function (swfObject, whenDone) {
 		swfObject.data = buffer;
 		self.translatePng(swfObject, whenDone);
 	});
-}
+};
 
 CanvasRenderer.prototype.renderJpg = function (swfObject, whenDone) {
 	if (swfObject.alphaData) {
@@ -40,7 +40,7 @@ CanvasRenderer.prototype.renderJpg = function (swfObject, whenDone) {
 	} else {
 		this.translateJpg(swfObject, whenDone);
 	}
-}
+};
 
 CanvasRenderer.prototype._translateJpg = function (image, swfObject, whenDone) {
 	// Writing image into canvas in order to manipulate its pixels
@@ -73,7 +73,7 @@ CanvasRenderer.prototype._translateJpg = function (image, swfObject, whenDone) {
 	}
 
 	whenDone(swfObject, canvas);
-}
+};
 
 CanvasRenderer.prototype.translateJpg = function (swfObject, whenDone) {
 	// Image creation
@@ -85,11 +85,11 @@ CanvasRenderer.prototype.translateJpg = function (swfObject, whenDone) {
 		var self = this;
 		image.onload = function () {
 			self._translateJpg(image, swfObject, whenDone);
-		}
+		};
 	} else {
 		this._translateJpg(image, swfObject, whenDone);
 	}
-}
+};
 
 CanvasRenderer.prototype.translatePng = function (swfObject, whenDone) {
 	var width  = swfObject.width;
@@ -149,4 +149,4 @@ CanvasRenderer.prototype.translatePng = function (swfObject, whenDone) {
 	context.putImageData(imageData, 0, 0);
 
 	whenDone(swfObject, canvas);
-}
+};

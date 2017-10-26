@@ -133,8 +133,8 @@ CanvasRenderer.prototype._outlineShapes = function (context, shapes, transform, 
 		var matrix = fill.matrix;
 		var stops  = fill.stops;
 
-		var scaleX = matrix.scaleX === 0 ? 1 : matrix.scaleX;
-		var scaleY = matrix.scaleY === 0 ? 1 : matrix.scaleY;
+		scaleX = matrix.scaleX === 0 ? 1 : matrix.scaleX;
+		scaleY = matrix.scaleY === 0 ? 1 : matrix.scaleY;
 		transform = multiplyTransforms(transform, [scaleX, matrix.skewX, matrix.skewY, scaleY, matrix.moveX, matrix.moveY]);
 
 		scale = 1;

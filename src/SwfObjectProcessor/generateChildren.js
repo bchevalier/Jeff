@@ -224,7 +224,7 @@ function createMorphedShape(items, symbol, ratio) {
 
 function generateChildren(symbol, items) {
 	/* jshint maxcomplexity: 50 */
-	/* jshint maxstatements: 150 */
+	/* jshint maxstatements: 160 */
 
 	var f;
 	var objectTransform;

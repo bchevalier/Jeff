@@ -96,8 +96,8 @@ function createItem(id, swfObject) {
 			break;
 
 		// Not handled yet
-		case 'text':
-		case 'font':
+		// case 'text':
+		// case 'font':
 		default:
 			item = new UnhandledItem(id, swfObject.type);
 			break;
@@ -127,7 +127,7 @@ function createItems(swfObjects, showUnhandled) {
 		var id = parseInt(swfObject.id, 10);
 		var item = createItem(id, swfObject);
 		if (showUnhandled && item.isUnhandled) {
-			console.warn('[Jeff.createItem] Unsupported swfObject. Id = ' + item.id + '. Type = ' + item.type)
+			console.warn('[Jeff.createItem] Unsupported swfObject. Id = ' + item.id + '. Type = ' + item.type);
 		}
 
 		if (item.isSymbol) {

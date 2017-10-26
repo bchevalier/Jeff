@@ -181,7 +181,7 @@ function findImageData(image, newSpriteImages) {
 			return imageData;
 		}
 	}
-	return null
+	return null;
 }
 
 module.exports = function formatSpritesForExport(getCanvas, spriteImages, spriteProperties, createAtlas, powerOf2Images, maxImageDim, classGroupName) {

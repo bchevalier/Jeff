@@ -64,7 +64,7 @@ function Jeff(options, getCanvas, Image) {
 
 function JeffOptions(params) {
 	// Primary options
-	this.inputDir            = params.inputDir            || '.';
+	this.inputDir            = (params.inputDir === null  || params.inputDir === undefined) ? '.' : '';
 	this.outDir              = params.outDir              || null;
 	this.source              = params.source              || '*.swf';
 
@@ -78,7 +78,7 @@ function JeffOptions(params) {
 	this.powerOf2Images      = params.powerOf2Images      || false;
 	this.maxImageDim         = params.maxImageDim         || 2048;
 	this.beautify            = params.beautify            || false;
-	this.collapse            = params.collapse           || false;
+	this.collapse            = params.collapse            || false;
 	this.prerenderBlendings  = params.prerenderBlendings  || false;
 
 	// Advanced options
@@ -140,7 +140,7 @@ Jeff.prototype._extract = function (cb) {
 	this._fileHeaderInfo = {};
 
 	// Making sure the input directory exists
-	if (this._options.inputDir && !fs.existsSync(this._options.inputDir)) {
+	if (this._options.inputDir !== '' && !fs.existsSync(this._options.inputDir)) {
 		throw new Error('Directory not found: ' + this._options.inputDir);
 	}
 
@@ -188,7 +188,7 @@ Jeff.prototype._extractFileGroups = function (swfUris, endExtractionCb) {
 
 			console.log('Jeff Converted ' + nbFiles + ' swf files out of ' + swfUris.length + '. Failures: ' + nbErrors);
 			if (endExtractionCb) {
-				endExtractionCb(null, { files: nbFiles, errors: nbErrors }, self._extractedData);
+				endExtractionCb(null, { files: nbFiles, errors: nbErrors, filePaths: swfUris }, self._extractedData);
 			}
 		}
 	);
@@ -269,6 +269,14 @@ Jeff.prototype._parseFile = function (swfName, nextSwfCb) {
 				swfObjects[id] = swfObject;
 			},
 			function (error) {
+				if (error) {
+					if (self._options.verbosity >= 1) {
+						console.error(error);
+					}
+					nextSwfCb(error);
+					return;
+				}
+
 				// keeping track of frame rate
 				for (var c = 0; c < classes.length; c += 1) {
 					self._frameRates[classes[c]] = self._frameRate;
@@ -420,7 +428,9 @@ Jeff.prototype._extractClassGroup = function (spriteImages, spriteProperties) {
 			imageArray[i] = spritesImage.image;
 		}
 
-		this._writeImagesToDisk(spritesImages);
+		if (this._options.writeToDisk) {
+			this._writeImagesToDisk(spritesImages);
+		}
 
 		exportData.images = images;
 	}
@@ -432,20 +442,22 @@ Jeff.prototype._extractClassGroup = function (spriteImages, spriteProperties) {
 		helper.delocateMatrices(exportData);
 	}
 
-	if (!this._options.ignoreData) {
-		this._writeDataToDisk(exportData);
+	var outputName = this._generateOutputName();
+	if (!this._options.ignoreData && this._options.writeToDisk) {
+		this._writeDataToDisk(outputName, exportData);
 	}
 
 	if (this._options.returnData) {
 		this._extractedData.push({
 			images: imageArray,
-			data: exportData
+			data: exportData,
+			name: outputName
 		});
 	}
 };
 
 Jeff.prototype._generateImageName = function (imgName) {
-	var imgPath = (this._options.scope === 'classes') ? this._classGroupName : '';
+	var imgPath = (this._options.scope === 'library') ? this._classGroupName : '';
 	return path.join(imgPath, imgName) + '.png';
 };
 
@@ -479,15 +491,14 @@ Jeff.prototype._canvasToPng = function (pngName, canvas) {
 	}
 };
 
-Jeff.prototype._writeDataToDisk = function (data) {
-	var jsonFileName = this._generateJsonFileName();
-	this._dataToJson(jsonFileName, data);
+Jeff.prototype._writeDataToDisk = function (outputName, data) {
+	this._dataToJson(path.join(this._options.outDir, outputName + '.json'), data);
 };
 
-Jeff.prototype._generateJsonFileName = function () {
+Jeff.prototype._generateOutputName = function () {
 	var jsonPath = this._fileGroupName;
 
-	if (this._options.scope === 'classes') {
+	if (this._options.scope === 'library') {
 		jsonPath = path.join(jsonPath, this._classGroupName);
 	}
 
@@ -495,7 +506,7 @@ Jeff.prototype._generateJsonFileName = function () {
 		jsonPath = path.basename(jsonPath);
 	}
 
-	return path.join(this._options.outDir, jsonPath + '.json');
+	return jsonPath;
 };
 
 function rounding(key, val) {

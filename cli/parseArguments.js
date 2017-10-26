@@ -16,7 +16,7 @@ module.exports = function parseArguments (argv) {
 	.option('-o, --outDir <dir>',                           'Output directory', '.')
 
 	// Secondary options
-	.option('-S, --scope <scope>',                          'Scope of the animation to export, either \'classes\' or \'main\'', 'main')
+	.option('-S, --scope <scope>',                          'Scope of the animation to export, either \'library\' or \'main\'', 'main')
 	.option('-r, --ratio <ratio>',                          'Image scale', '1')
 	.option('-f, --renderFrames <boolean/array of frames>', 'To extract specified frames of the animations as PNGs', 'false')
 
@@ -30,7 +30,7 @@ module.exports = function parseArguments (argv) {
 
 	// Advanced options
 	.option('-R, --exportAtRoot <boolean>',                 'To export everything at the root of the output directory', 'false')
-	.option('-C, --splitClasses <boolean>',                 'To split the different classes of the animation into several outputs', 'false')
+	.option('-C, --splitClasses <boolean>',                 'To split the different library classes of the animation into several outputs', 'false')
 	.option('-d, --ignoreData <boolean>',                   'Not to export JSON meta-data', 'false')
 	.option('-I, --ignoreImages <boolean>',                 'Not to export images', 'false')
 	.option('-F, --filtering <filtering method>',           'Filtering that should be used when rendering the animation', 'linear')

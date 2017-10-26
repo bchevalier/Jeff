@@ -6,7 +6,7 @@ var clickable    = domUtils.clickable;
 
 
 var JEFF_OPTIONS_UI = {
-	scope:              { type: 'dropdown', values: ['main', 'classes'], desc: 'Scope of the animation to export' },
+	scope:              { type: 'dropdown', values: ['main', 'library'], desc: 'Scope of the animation to export' },
 	filtering:          { type: 'dropdown', values: ['linear'], desc: 'Filtering that should be used by animation' },
 	ratio:              { type: 'number', desc: 'Image scale' },
 	renderFrames:       { type: 'toggle', desc: 'Extract specified frames as PNGs' },
