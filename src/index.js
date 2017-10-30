@@ -82,6 +82,7 @@ function JeffOptions(params) {
 	this.prerenderBlendings  = params.prerenderBlendings  || false;
 
 	// Advanced options
+	this.bundle              = params.bundle              || false;
 	this.exportAtRoot        = params.exportAtRoot        || false;
 	this.splitClasses        = params.splitClasses        || false;
 	this.ignoreImages        = params.ignoreImages        || false;
@@ -457,7 +458,7 @@ Jeff.prototype._extractClassGroup = function (spriteImages, spriteProperties) {
 };
 
 Jeff.prototype._generateImageName = function (imgName) {
-	var imgPath = (this._options.scope === 'library') ? this._classGroupName : '';
+	var imgPath = (this._options.scope === 'library' && !this._options.bundle) ? this._classGroupName : '';
 	return path.join(imgPath, imgName) + '.png';
 };
 
@@ -470,7 +471,12 @@ Jeff.prototype._writeImagesToDisk = function (spritesImages) {
 			imageName = path.basename(imageName);
 		}
 
-		var imagePath = path.join(this._options.outDir, imageName);
+		var imageDirectory = this._options.outDir;
+		if (this._options.bundle) {
+			imageDirectory = path.join(imageDirectory, this._classGroupName);
+		}
+
+		var imagePath = path.join(imageDirectory, imageName);
 		this._canvasToPng(imagePath, spritesImage.image);
 	}
 };
@@ -492,6 +498,10 @@ Jeff.prototype._canvasToPng = function (pngName, canvas) {
 };
 
 Jeff.prototype._writeDataToDisk = function (outputName, data) {
+	if (this._options.bundle) {
+		outputName = path.join(outputName, 'data');
+	}
+
 	this._dataToJson(path.join(this._options.outDir, outputName + '.json'), data);
 };
 
