@@ -1,11 +1,13 @@
 var CanvasRenderer = require('./main');
 var elements       = require('../elements/');
 var comparators    = require('../Helper/comparators.js');
+var computeBounds  = require('../SwfObjectProcessor/computeBounds.js');
 
 var areObjectsDifferent    = comparators.areObjectsDifferent;
 var areTransformsDifferent = comparators.areTransformsDifferent;
 var areColorsDifferent     = comparators.areColorsDifferent;
 
+var Symbol = elements.Symbol;
 var Sprite = elements.Sprite;
 var Bounds = elements.Bounds;
 
@@ -359,6 +361,28 @@ CanvasRenderer.prototype._renderImages = function () {
 	}
 };
 
+function isChildStatic (child) {
+	var transforms = child.transforms;
+	var colors     = child.colors;
+	var blendModes = child.blendModes;
+	var filters    = child.filters;
+
+	var modelTransform = transforms[0];
+	var modelColor     = colors[0];
+	var modelBlendMode = blendModes && blendModes[0];
+	var modelFilter    = filters    && filters[0];
+	for (var f = 1; f < transforms.length; f += 1) {
+		if (areTransformsDifferent(transforms[f], modelTransform) ||
+			areColorsDifferent(colors[f], modelColor) ||
+			modelBlendMode && (modelBlendMode !== blendModes[f]) ||
+			modelFilter && areObjectsDifferent(modelFilter, filters[f])
+		) {
+			return false;
+		}
+	}
+
+	return true;
+}
 
 CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap, spriteProperties) {
 	// Prerendering symbols when possible for optimized runtime performance
@@ -467,6 +491,7 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 	var collapseableSprites = {};
 
 	// List of symbols that can be merged
+	var elementIds = symbolIds.slice();
 	for (s = 0; s < symbolIds.length; s += 1) {
 		symbolId = symbolIds[s];
 		symbol = symbols[symbolId];
@@ -519,29 +544,7 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 			}
 
 			if (frameCount > 1 && isSymbolStatic) {
-				var isChildStatic = true;
-
-				var transforms = child.transforms;
-				var colors     = child.colors;
-				var blendModes = child.blendModes;
-				var filters    = child.filters;
-
-				var modelTransform = transforms[0];
-				var modelColor     = colors[0];
-				var modelBlendMode = blendModes && blendModes[0];
-				var modelFilter    = filters    && filters[0];
-				for (var f = 1; f < transforms.length; f += 1) {
-					if (areTransformsDifferent(transforms[f], modelTransform) ||
-						areColorsDifferent(colors[f], modelColor) ||
-						modelBlendMode && (modelBlendMode !== blendModes[f]) ||
-						modelFilter && areObjectsDifferent(modelFilter, filters[f])
-					) {
-						isChildStatic = false;
-						break;
-					}
-				}
-
-				if (!isChildStatic) {
+				if (!isChildStatic(child)) {
 					isSymbolStatic  = false;
 					isPrerenderable = false;
 					tooManyFramcs = true;
@@ -635,11 +638,6 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 			sprite.className = symbol.className;
 			sprite.bounds    = symbol.bounds[0];
 
-			var x = frameCanvas.x;
-			var y = frameCanvas.y;
-			var w = frameCanvas.w;
-			var h = frameCanvas.h;
-
 			// Referencing image associated with sprite
 			this._images[symbolId] = canvas;
 
@@ -691,23 +689,193 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 				} else {
 					// Collapsing the animation hierarchy
 					collapseSymbol(symbol, symbols, sprites, prerenderBlendings);
+					this.prerenderMaskedSymbols(symbol, symbols, sprites, imageMap, spriteProperties, elementIds);
 				}
 			}
 		}
 
 	}
 
-	var newSpriteId = symbolIds[symbolIds.length - 1];
-	this.prerenderFilteredSymbols(symbols, sprites, imageMap, spriteProperties, newSpriteId);
+	this.prerenderFilteredSymbols(symbols, sprites, imageMap, spriteProperties, elementIds);
+	this.trimUnnecessaryElements(symbols, sprites, imageMap, spriteProperties);
 };
 
+function MaskGroup (startIndex, endIndex) {
+	this.start = startIndex;
+	this.end   = endIndex;
+}
 
-CanvasRenderer.prototype.prerenderFilteredSymbols = function (symbols, sprites, imageMap, spriteProperties, newSpriteId) {
+CanvasRenderer.prototype.prerenderMaskedSymbols = function (symbol, symbols, sprites, imageMap, spriteProperties, elementIds) {
+	var ratio = this._extractor._fileGroupRatio;
+	var children = symbol.children;
+
+	// checking for existence of masks
+	var masks = [];
+	var isMasked = false;
+	var maskStart = -1;
+
+	var canPrerender = false;
+	for (var c = children.length - 1; c >= 0; c -= 1) {
+		var child = children[c];
+		if (child.maskStart) {
+			isMasked     = true;
+			canPrerender = true;
+			maskStart = c;
+			continue;
+		}
+
+		if (child.maskEnd) {
+			isMasked = false;
+			if (canPrerender) {
+				masks.push(new MaskGroup(maskStart, c));
+			}
+			continue
+		}
+
+		if (isMasked && canPrerender) {
+			var childId = child.id;
+			var sprite = sprites[childId];
+			canPrerender = (!!sprite || !sprite.className);
+		}
+
+	}
+
+	// Removing masked groups from symbol
+	// and creating a new symbol for each masked group
+	for (var m = 0; m < masks.length; m += 1) {
+		var maskGroup = masks[m];
+		var maskData = children[maskGroup.start];
+		var frames = maskData.frames;
+		var firstFrame = frames[0];
+		var frameCount = frames[1] - firstFrame + 1;
+
+		// Creating symbol for current group
+		var maskGroupSymbol = new Symbol(frameCount);
+		var maskGroupId = elementIds[elementIds.length - 1] + 1;
+		elementIds.push(maskGroupId);
+		maskGroupSymbol.id = maskGroupId;
+
+		var isMaskGroupStatic = true;
+
+		// N.B mask definition start and end are in reverse array order
+		for (c = maskGroup.end; c <= maskGroup.start; c += 1) {
+			var child = children[c];
+			child.frames[0] = 0;
+			child.frames[1] = frameCount - 1;
+			maskGroupSymbol.children.push(child);
+
+			if (isMaskGroupStatic) {
+				isMaskGroupStatic = isChildStatic(child);
+			}
+		}
+
+		// Removing children of mask group from original symbol
+		children.splice(maskGroup.end, maskGroup.start - maskGroup.end + 1);
+
+		// Computing bounds of new symbol
+		var tmpSymbols = {};
+		tmpSymbols[maskGroupId] = maskGroupSymbol;
+		computeBounds(tmpSymbols, sprites);
+
+		// Temporarily adding mask group symbol to list of symbols for rendering purpose
+		symbols[maskGroupId] = maskGroupSymbol;
+
+		var instance = new SymbolInstance(maskGroupId, maskGroupSymbol.bounds);
+
+		// Creating new symbols, one for each frame of the originally masked sub-animation
+		var nbFrames = isMaskGroupStatic ? 1 : frameCount;
+		for (var frame = 0; frame < nbFrames; frame += 1) {
+
+			frameCanvas = instance.constructFrame(this._getCanvas, frame, ratio);
+			var canvas  = frameCanvas.canvas;
+			var context = frameCanvas.context;
+			this._renderSymbol(canvas, context, IDENTITY_TRANSFORM, IDENTITY_COLOR, instance, frame, false);
+
+			newSpriteId = elementIds[elementIds.length - 1] + 1;
+			elementIds.push(newSpriteId);
+
+			// Creating sprite for frame
+			var sprite = new Sprite();
+			sprite.id = newSpriteId;
+			sprite.isImage = true;
+
+			sprite.duration = 1;
+			sprite.bounds = maskGroupSymbol.bounds[frame];
+
+			// Referencing image associated with sprite
+			this._images[newSpriteId] = canvas;
+
+			// Adding sprite to list of sprites
+			sprites[newSpriteId] = sprite;
+			imageMap[newSpriteId] = canvas;
+
+			spriteProperties[newSpriteId] = {
+				x: frameCanvas.x,
+				y: frameCanvas.y,
+				w: frameCanvas.w,
+				h: frameCanvas.h,
+				sx: 0, sy: 0,
+				sw: canvas.width,
+				sh: canvas.height
+			};
+
+			var firstChildFrame = firstFrame + frame;
+			var transform = IDENTITY_TRANSFORM.slice();
+			var color = IDENTITY_COLOR.slice();
+			if (isMaskGroupStatic) {
+				var lastChildFrame = firstChildFrame + frameCount - 1;
+				children.push({
+					id: newSpriteId,
+					frames: [firstChildFrame, lastChildFrame],
+					transforms: Array(frameCount).fill(transform),
+					colors: Array(frameCount).fill(color)
+				});
+			} else {
+				children.push({
+					id: newSpriteId,
+					frames: [firstChildFrame, firstChildFrame],
+					transforms: [transform],
+					colors: [color]
+				});
+			}
+		}
+
+		// Removing mask group symbol from list of symbols
+		delete symbols[maskGroupId];
+	}
+
+};
+
+CanvasRenderer.prototype.trimUnnecessaryElements = function (symbols, sprites, imageMap, spriteProperties) {
 	// Making list of unused elements to remove from list of symbols and sprites
 	// And prerendering sprites that have a filters applied
 	// for improved runtime performance
 	var usedElements = {};
 
+	for (var symbolId in symbols) {
+		var symbol = symbols[symbolId];
+		var children = symbol.children;
+		for (var c = 0; c < children.length; c += 1) {
+			usedElements[children[c].id] = true;
+		}
+	}
+
+	for (symbolId in symbols) {
+		if (!usedElements[symbolId] && !symbols[symbolId].className) {
+			delete symbols[symbolId];
+		}
+	}
+
+	for (var spriteId in sprites) {
+		if (!usedElements[spriteId] && !sprites[spriteId].className) {
+			delete sprites[spriteId];
+			delete imageMap[spriteId];
+			delete spriteProperties[spriteId];
+		}
+	}
+};
+
+CanvasRenderer.prototype.prerenderFilteredSymbols = function (symbols, sprites, imageMap, spriteProperties, elementIds) {
 	var frame = 0;
 	var ratio = this._extractor._fileGroupRatio;
 	var prerenderBlendings = this._extractor._options.prerenderBlendings;
@@ -724,104 +892,91 @@ CanvasRenderer.prototype.prerenderFilteredSymbols = function (symbols, sprites, 
 			var childId = child.id;
 
 			var sprite = sprites[childId];
-			var childFilters = child.filters;
-			if (sprite && childFilters) {
+			if (sprite) {
+				var childFilters = child.filters;
+				if (childFilters) {
+					var blendModes = prerenderBlendings ? child.blendModes : null;
 
-				var blendModes = prerenderBlendings ? child.blendModes : null;
+					delete child.filters;
+					if (blendModes) {
+						delete child.blendModes;
+					}
 
-				delete child.filters;
-				if (blendModes) {
-					delete child.blendModes;
-				}
+					var instance = new SymbolInstance(childId, [sprite.bounds], childFilters, blendModes);
+					var frameCanvas = instance.constructFrame(this._getCanvas, frame, ratio);
 
-				var instance = new SymbolInstance(childId, [sprite.bounds], childFilters, blendModes);
-				var frameCanvas = instance.constructFrame(this._getCanvas, frame, ratio);
+					// Testing whether sprite has already been rendered with identical dimensions
+					if (prerenderedFilteredElements[childId]) {
+						var prerenders = prerenderedFilteredElements[childId];
+						var prerenderId = null;
+						for (var p = 0; p < prerenders.length; p += 1) {
+							var prerender = prerenders[p];
+							if (prerender.dimensions.x === frameCanvas.x &&
+								prerender.dimensions.y === frameCanvas.y &&
+								prerender.dimensions.w === frameCanvas.w &&
+								prerender.dimensions.h === frameCanvas.h &&
+								prerender.blendMode === (blendModes && blendModes[0]) && 
+								!areObjectsDifferent(prerender.filters, childFilters[0])
+							) {
+								prerenderId = prerender.spriteId;
+								break;
+							}
+						}
 
-				// Testing whether sprite has already been rendered with identical dimensions
-				if (prerenderedFilteredElements[childId]) {
-					var prerenders = prerenderedFilteredElements[childId];
-					var prerenderId = null;
-					for (var p = 0; p < prerenders.length; p += 1) {
-						var prerender = prerenders[p];
-						if (prerender.dimensions.x === frameCanvas.x &&
-							prerender.dimensions.y === frameCanvas.y &&
-							prerender.dimensions.w === frameCanvas.w &&
-							prerender.dimensions.h === frameCanvas.h &&
-							prerender.blendMode === (blendModes && blendModes[0]) && 
-							!areObjectsDifferent(prerender.filters, childFilters[0])
-						) {
-							prerenderId = prerender.spriteId;
-							break;
+						if (prerenderId) {
+							child.id = prerenderId;
+							continue;
 						}
 					}
 
-					if (prerenderId) {
-						child.id = prerenderId;
-						continue;
+					newSpriteId = elementIds[elementIds.length - 1] + 1;
+					elementIds.push(newSpriteId);
+					child.id = newSpriteId;
+
+					this._renderSymbol(
+						frameCanvas.canvas,
+						frameCanvas.context,
+						IDENTITY_TRANSFORM,
+						IDENTITY_COLOR,
+						instance,
+						frame,
+						false,
+						true
+					);
+
+					newSprite = JSON.parse(JSON.stringify(sprite));
+					newSprite.id = newSpriteId;
+					newSprite.className = sprite.className;
+
+					// Referencing image associated with sprite
+					this._images[newSpriteId] = frameCanvas.canvas;
+
+					// Adding sprite to list of
+					sprites[newSpriteId]  = newSprite;
+					imageMap[newSpriteId] = frameCanvas.canvas;
+
+					var spriteDimensions = JSON.parse(JSON.stringify(spriteProperties[childId]));
+					spriteDimensions.x = frameCanvas.x;
+					spriteDimensions.y = frameCanvas.y;
+					spriteDimensions.w = frameCanvas.w;
+					spriteDimensions.h = frameCanvas.h;
+
+					spriteProperties[newSpriteId] = spriteDimensions;
+
+					if (!prerenderedFilteredElements[childId]) {
+						prerenderedFilteredElements[childId] = [];
 					}
+
+					prerenderedFilteredElements[childId].push({
+						filters: childFilters[0],
+						blendMode: blendModes && blendModes[0],
+						dimensions: spriteDimensions,
+						spriteId: newSpriteId
+					});
+
+					childId = newSpriteId;
 				}
-
-				newSpriteId += 1;
-				child.id = newSpriteId;
-
-				this._renderSymbol(
-					frameCanvas.canvas,
-					frameCanvas.context,
-					IDENTITY_TRANSFORM,
-					IDENTITY_COLOR,
-					instance,
-					frame,
-					false,
-					true
-				);
-
-				newSprite = JSON.parse(JSON.stringify(sprite));
-				newSprite.id = newSpriteId;
-				newSprite.className = sprite.className;
-
-				// Referencing image associated with sprite
-				this._images[newSpriteId] = frameCanvas.canvas;
-
-				// Adding sprite to list of
-				sprites[newSpriteId]  = newSprite;
-				imageMap[newSpriteId] = frameCanvas.canvas;
-
-				var spriteDimensions = JSON.parse(JSON.stringify(spriteProperties[childId]));
-				spriteDimensions.x = frameCanvas.x;
-				spriteDimensions.y = frameCanvas.y;
-				spriteDimensions.w = frameCanvas.w;
-				spriteDimensions.h = frameCanvas.h;
-
-				spriteProperties[newSpriteId] = spriteDimensions;
-
-				if (!prerenderedFilteredElements[childId]) {
-					prerenderedFilteredElements[childId] = [];
-				}
-
-				prerenderedFilteredElements[childId].push({
-					filters: childFilters[0],
-					blendMode: blendModes && blendModes[0],
-					dimensions: spriteDimensions,
-					spriteId: newSpriteId
-				});
-
-				childId = newSpriteId;
 			}
-			usedElements[childId] = true;
-		}
-	}
-
-	for (symbolId in symbols) {
-		if (!usedElements[symbolId] && !symbols[symbolId].className) {
-			delete symbols[symbolId];
-		}
-	}
-
-	for (var spriteId in sprites) {
-		if (!usedElements[spriteId] && !sprites[spriteId].className) {
-			delete sprites[spriteId];
-			delete imageMap[spriteId];
-			delete spriteProperties[spriteId];
 		}
 	}
 };

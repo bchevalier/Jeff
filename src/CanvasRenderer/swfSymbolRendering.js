@@ -74,6 +74,60 @@ function applyTint(context, tint, dim, bounds) {
 	context.putImageData(pixelBuffer, left, top);
 }
 
+CanvasRenderer.prototype._renderMaskGroup = function(children, maskStart, globalCanvas, globalContext, parentTransform, parentColor, frame, isMask) {
+	var maskChild = children[maskStart];
+
+	// Creating an intermediary canvas to apply the mask
+	var maskCanvas  = this._getCanvas(globalCanvas.width, globalCanvas.height);
+	var maskContext = maskCanvas.getContext('2d');
+
+	this._renderSymbol(maskCanvas, maskContext, parentTransform, parentColor, maskChild, frame - maskChild.frames[0], true);
+
+	var clipCanvas  = this._getCanvas(globalCanvas.width, globalCanvas.height);
+	var clipContext = clipCanvas.getContext('2d');
+
+	// To support masked layers with blend mode
+	clipContext.drawImage(globalCanvas, 0, 0);
+
+	var maskContext = 1;
+	var c = maskStart;
+	while (maskContext > 0) {
+		var child = children[--c];
+		if (frame < child.frames[0] || child.frames[1] < frame) {
+			continue;
+		}
+
+		if (child.maskStart) {
+			maskContext += 1;
+			c = this._renderMaskGroup(children, c, clipCanvas, clipContext, parentTransform, parentColor, frame, isMask);
+			continue;
+		}
+
+		if (child.maskEnd) {
+			maskContext -= 1;
+			continue;
+		}
+
+		this._renderSymbol(clipCanvas, clipContext, parentTransform, parentColor, child, frame - child.frames[0], isMask);
+	}
+
+	// Setting the global composite operation that is equivalent to applying a mask
+	clipContext.globalCompositeOperation = 'destination-in';
+
+	// Applying mask
+	clipContext.globalAlpha = 1;
+	clipContext.setTransform(1, 0, 0, 1, 0, 0);
+	clipContext.drawImage(maskCanvas, 0, 0);
+
+	// Rendering clipped elements onto final canvas
+	globalContext.globalAlpha = 1;
+	globalContext.setTransform(1, 0, 0, 1, 0, 0);
+	globalContext.drawImage(clipCanvas, 0, 0);
+	// globalContext.drawImage(maskCanvas, 0, 0);
+
+	return c + 1;
+};
+
 CanvasRenderer.prototype._renderSymbol = function (globalCanvas, globalContext, parentTransform, parentColor, instance, frame, isMask) {
 	/* jshint maxcomplexity: 60 */
 	/* jshint maxstatements: 150 */
@@ -157,48 +211,13 @@ CanvasRenderer.prototype._renderSymbol = function (globalCanvas, globalContext, 
 		frame = frame % symbol.frameCount;
 		for (var c = children.length - 1; c >= 0; c -= 1) {
 			var child = children[c];
-
 			if (frame < child.frames[0] || child.frames[1] < frame || child.maskEnd) {
 				// Child is not visible at given frame
 				continue;
 			}
 
 			if (child.maskStart) {
-				// Masking
-
-				// Creating an intermediary canvas to apply the mask
-				var maskCanvas  = this._getCanvas(localCanvas.width, localCanvas.height);
-				var maskContext = maskCanvas.getContext('2d');
-
-				this._renderSymbol(maskCanvas, maskContext, matrix, color, child, frame - child.frames[0], true);
-
-				var clipCanvas  = this._getCanvas(localCanvas.width, localCanvas.height);
-				var clipContext = clipCanvas.getContext('2d');
-
-				// To support masked layers with blend mode
-				clipContext.drawImage(localCanvas, 0, 0);
-
-				// Rendering all the children that are meant to be clipped
-				var clipDepth = child.clipDepth;
-				while (!children[--c].maskEnd) {
-					var clippedChild = children[c];
-					if (clippedChild.frames[0] <= frame && frame <= clippedChild.frames[1]) {
-						this._renderSymbol(clipCanvas, clipContext, matrix, color, clippedChild, frame - clippedChild.frames[0], isMask);
-					}
-				}
-
-				// Setting the global composite operation that is equivalent to applying a mask
-				clipContext.globalCompositeOperation = 'destination-in';
-
-				// Applying mask
-				clipContext.globalAlpha = 1;
-				clipContext.setTransform(1, 0, 0, 1, 0, 0);
-				clipContext.drawImage(maskCanvas, 0, 0);
-
-				// Rendering clipped elements onto final canvas
-				localContext.globalAlpha = 1;
-				localContext.setTransform(1, 0, 0, 1, 0, 0);
-				localContext.drawImage(clipCanvas, 0, 0);
+				c = this._renderMaskGroup(children, c, localCanvas, localContext, matrix, color, frame, isMask);
 			} else {
 				this._renderSymbol(localCanvas, localContext, matrix, color, child, frame - child.frames[0], isMask);
 			}

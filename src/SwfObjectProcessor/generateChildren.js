@@ -253,17 +253,25 @@ function generateChildren(symbol, items) {
 				// objects are not redefined every frame
 				// In objectData, if an object remains unchanged from a frame A to a frame B then it does not appear in frame B
 				if (!objectLayerData[depth]) {
-
 					// no object was previously defined for the given depth
 					objectLayerData[depth] = objectData;
 				} else {
+					if (objectData.id) {
+						// changing object id
+						// only keeping transformation matrix, if none specified
+						if (objectData.matrix === undefined) {
+							objectData.matrix = objectLayerData[depth].matrix;
+						}
+						objectLayerData[depth] = objectData;
+					} else {
+						for (var a = 0, attributeArray = Object.keys(objectData), nAttributes = attributeArray.length; a < nAttributes; a += 1) {
+							var attribute = attributeArray[a];
 
-					for (var a = 0, attributeArray = Object.keys(objectData), nAttributes = attributeArray.length; a < nAttributes; a += 1) {
-						var attribute = attributeArray[a];
-
-						// the object attribute has changed
-						objectLayerData[depth][attribute] = objectData[attribute];
+							// the object attribute has changed
+							objectLayerData[depth][attribute] = objectData[attribute];
+						}
 					}
+
 				}
 
 				// Testing for special case when object is a morphing
