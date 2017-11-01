@@ -700,9 +700,11 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 	this.trimUnnecessaryElements(symbols, sprites, imageMap, spriteProperties);
 };
 
-function MaskGroup (startIndex, endIndex) {
-	this.start = startIndex;
-	this.end   = endIndex;
+function MaskGroup (startIndex, endIndex, startFrame, endFrame) {
+	this.startIndex = startIndex;
+	this.endIndex   = endIndex;
+	this.startFrame = startFrame;
+	this.endFrame   = endFrame;
 }
 
 CanvasRenderer.prototype.prerenderMaskedSymbols = function (symbol, symbols, sprites, imageMap, spriteProperties, elementIds) {
@@ -712,22 +714,36 @@ CanvasRenderer.prototype.prerenderMaskedSymbols = function (symbol, symbols, spr
 	// checking for existence of masks
 	var masks = [];
 	var isMasked = false;
-	var maskStart = -1;
+	var maskStartIndex = 0;
+	var maskContext    = 0;
+	var maskStartFrame = 0;
+	var maskEndFrame   = 0;
 
 	var canPrerender = false;
 	for (var c = children.length - 1; c >= 0; c -= 1) {
 		var child = children[c];
 		if (child.maskStart) {
-			isMasked     = true;
-			canPrerender = true;
-			maskStart = c;
+			maskContext += 1;
+			if (maskContext === 1) {
+				isMasked     = true;
+				canPrerender = true;
+				maskStartIndex = c;
+				maskStartFrame = child.frames[0];
+				maskEndFrame   = child.frames[1];
+			} else {
+				maskStartFrame = Math.min(maskStartFrame, child.frames[0]);
+				maskEndFrame   = Math.max(maskEndFrame,   child.frames[0]);
+			}
 			continue;
 		}
 
 		if (child.maskEnd) {
-			isMasked = false;
-			if (canPrerender) {
-				masks.push(new MaskGroup(maskStart, c));
+			maskContext -= 1;
+			if (maskContext === 0) {
+				isMasked = false;
+				if (canPrerender) {
+					masks.push(new MaskGroup(maskStartIndex, c, maskStartFrame, maskEndFrame));
+				}
 			}
 			continue
 		}
@@ -744,10 +760,8 @@ CanvasRenderer.prototype.prerenderMaskedSymbols = function (symbol, symbols, spr
 	// and creating a new symbol for each masked group
 	for (var m = 0; m < masks.length; m += 1) {
 		var maskGroup = masks[m];
-		var maskData = children[maskGroup.start];
-		var frames = maskData.frames;
-		var firstFrame = frames[0];
-		var frameCount = frames[1] - firstFrame + 1;
+		var maskData = children[maskGroup.startIndex];
+		var frameCount = maskGroup.endFrame - maskGroup.startFrame + 1;
 
 		// Creating symbol for current group
 		var maskGroupSymbol = new Symbol(frameCount);
@@ -755,22 +769,31 @@ CanvasRenderer.prototype.prerenderMaskedSymbols = function (symbol, symbols, spr
 		elementIds.push(maskGroupId);
 		maskGroupSymbol.id = maskGroupId;
 
+		var maskedChildrenIndexes = [];
 		var isMaskGroupStatic = true;
 
 		// N.B mask definition start and end are in reverse array order
-		for (c = maskGroup.end; c <= maskGroup.start; c += 1) {
+		for (c = maskGroup.endIndex; c <= maskGroup.startIndex; c += 1) {
 			var child = children[c];
-			child.frames[0] = 0;
-			child.frames[1] = frameCount - 1;
-			maskGroupSymbol.children.push(child);
+			var childFrames = child.frames;
+			if (childFrames[0] > maskGroup.endFrame || maskGroup.startFrame > childFrames[1]) {
+				continue;
+			}
+
+			var maskChild = JSON.parse(JSON.stringify(child));
+
+			maskChild.frames[0] = childFrames[0] - maskGroup.startFrame;
+			maskChild.frames[1] = childFrames[1] - maskGroup.startFrame;
+			maskGroupSymbol.children.push(maskChild);
+			maskedChildrenIndexes.push(c);
 
 			if (isMaskGroupStatic) {
-				isMaskGroupStatic = isChildStatic(child);
+				isMaskGroupStatic = isChildStatic(maskChild);
 			}
 		}
 
 		// Removing children of mask group from original symbol
-		children.splice(maskGroup.end, maskGroup.start - maskGroup.end + 1);
+		children.splice(maskGroup.endIndex, maskGroup.startIndex - maskGroup.endIndex + 1);
 
 		// Computing bounds of new symbol
 		var tmpSymbols = {};
@@ -819,19 +842,19 @@ CanvasRenderer.prototype.prerenderMaskedSymbols = function (symbol, symbols, spr
 				sh: canvas.height
 			};
 
-			var firstChildFrame = firstFrame + frame;
+			var firstChildFrame = maskGroup.startFrame + frame;
 			var transform = IDENTITY_TRANSFORM.slice();
 			var color = IDENTITY_COLOR.slice();
 			if (isMaskGroupStatic) {
 				var lastChildFrame = firstChildFrame + frameCount - 1;
-				children.push({
+				children.splice(maskGroup.endIndex, 0, {
 					id: newSpriteId,
 					frames: [firstChildFrame, lastChildFrame],
 					transforms: Array(frameCount).fill(transform),
 					colors: Array(frameCount).fill(color)
 				});
 			} else {
-				children.push({
+				children.splice(maskGroup.endIndex, 0, {
 					id: newSpriteId,
 					frames: [firstChildFrame, firstChildFrame],
 					transforms: [transform],
