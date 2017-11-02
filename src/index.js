@@ -215,6 +215,7 @@ Jeff.prototype._parseFile = function (swfName, nextSwfCb) {
 	if (this._options.verbosity >= 5) {
 		console.log('parsing: ' + swfName);
 	}
+
 	var self = this;
 	var swfObjects = [];
 	var classes = [];
