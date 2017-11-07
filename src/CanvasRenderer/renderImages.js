@@ -411,6 +411,7 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 	// Counting number of occurences of each element
 	// i.e how many different symbols each element belongs to
 	var elementOccurences = {};
+	var elementInstances  = {};
 	var elementSymbols    = {};
 	for (s = 0; s < symbolIds.length; s += 1) {
 		symbolId = symbolIds[s];
@@ -433,13 +434,11 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 
 			if (!elementSymbols[childId]) {
 				elementSymbols[childId] = [symbolId];
-			} else {
-				elementSymbols[childId].push(symbolId);
-			}
-
-			if (!elementOccurences[childId]) {
+				elementInstances[childId] = [child];
 				elementOccurences[childId] = 1;
 			} else {
+				elementSymbols[childId].push(symbolId);
+				elementInstances[childId].push(child);
 				elementOccurences[childId] += 1;
 			}
 		}
@@ -456,11 +455,13 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 
 		// getting maximum playable duration
 		var maxFrameCount = 1;
-		var appearances = elementSymbols[symbolId];
+		// var appearances = elementSymbols[symbolId];
+		var appearances = elementInstances[symbolId];
 		for (a = 0; a < appearances.length; a += 1) {
 			var appearance = appearances[a];
-			if (maxFrameCount < appearance.frameCount) {
-				maxFrameCount = appearance.frameCount;
+			var frameCount = appearance.frames[1] - appearance.frames[0] + 1;
+			if (maxFrameCount < frameCount) {
+				maxFrameCount = frameCount;
 			}
 		}
 
@@ -476,9 +477,11 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 				children.splice(c, 1);
 				c -= 1;
 			} else if (child.frames[1] >= maxFrameCount) {
-				var sliceSize = maxFrameCount - child.frames[0];
+				var firstFrame = child.frames[0];
+				var sliceSize = maxFrameCount - firstFrame;
+				child.frames 	 = [firstFrame, firstFrame + sliceSize - 1];
 				child.transforms = child.transforms.slice(0, sliceSize);
-				child.color      = child.colors.slice(0, sliceSize);
+				child.colors     = child.colors.slice(0, sliceSize);
 				if (child.filters)    child.filters    = child.filters.slice(0, sliceSize);
 				if (child.blendModes) child.blendModes = child.blendModes.slice(0, sliceSize);
 			}
@@ -689,7 +692,7 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 				} else {
 					// Collapsing the animation hierarchy
 					collapseSymbol(symbol, symbols, sprites, prerenderBlendings);
-					this.prerenderMaskedSymbols(symbol, symbols, sprites, imageMap, spriteProperties, elementIds);
+					// this.prerenderMaskedSymbols(symbol, symbols, sprites, imageMap, spriteProperties, elementIds);
 				}
 			}
 		}
