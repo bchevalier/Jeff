@@ -57,11 +57,6 @@ var transformBound = function (transform, bounds) {
 };
 
 function computeInstanceBounds(child, symbols, sprites, frame) {
-	// Verifying that the child exists for given frame
-	if (frame < child.frames[0] || child.frames[1] < frame) {
-		return null;
-	}
-
 	var bbox = computeBoundsAtFrame(child.id, symbols, sprites, frame - child.frames[0]);
 	if (bbox === null) {
 		return null;
@@ -84,6 +79,65 @@ function computeInstanceBounds(child, symbols, sprites, frame) {
 	}
 
 	return bounds;
+}
+
+function computeMaskGroupBounds(itemId, symbols, sprites, frame, children, maskStart) {
+
+	var left   = Infinity;
+	var top    = Infinity;
+	var right  = - Infinity;
+	var bottom = - Infinity;
+
+	var c = maskStart;
+	var maskContext = 1;
+	while (maskContext > 0) {
+		var child = children[--c];
+		if (frame < child.frames[0] || child.frames[1] < frame) {
+			continue;
+		}
+
+		if (child.maskEnd) {
+			maskContext -= 1;
+			continue;
+		}
+
+		var childBounds;
+		if (child.maskStart) {
+			maskContext += 1;
+			maskGroupData = computeMaskGroupBounds(itemId, symbols, sprites, frame, children, c);
+			c = maskGroupData.index;
+			childBounds = maskGroupData.bounds;
+		} else {
+			childBounds = computeInstanceBounds(child, symbols, sprites, frame)
+		}
+
+		if (!childBounds) {
+			continue;
+		}
+
+		left   = Math.min(childBounds.left,   left);
+		top    = Math.min(childBounds.top,    top);
+		right  = Math.max(childBounds.right,  right);
+		bottom = Math.max(childBounds.bottom, bottom);
+	}
+
+
+	var maskChild = children[maskStart];
+	var maskBounds = computeInstanceBounds(maskChild, symbols, sprites, frame);
+	left   = Math.max(left,   maskBounds.left);
+	top    = Math.max(top,    maskBounds.top);
+	right  = Math.min(right,  maskBounds.right);
+	bottom = Math.min(bottom, maskBounds.bottom);
+
+	if (left >= right || top >= bottom) {
+		return null;
+	}
+
+	return {
+		bounds: new Bounds(left, right, top, bottom),
+		index: c + 1
+	};
+
 }
 
 function computeBoundsAtFrame(itemId, symbols, sprites, frame) {
@@ -115,68 +169,34 @@ function computeBoundsAtFrame(itemId, symbols, sprites, frame) {
 	for (var c = children.length - 1; c >= 0; c -= 1) {
 		var child = children[c];
 
+		// Verifying that the child exists for given frame
+		if (frame < child.frames[0] || child.frames[1] < frame) {
+			continue;
+		}
+
 		if (child.maskEnd) {
 			continue;
 		}
 
 		// Verifying that the child exists for given frame
-		var bounds = computeInstanceBounds(child, symbols, sprites, frame);
+		var bounds;
+		if (child.maskStart) {
+			// Computing bounding box of masked elements
+			maskGroupData = computeMaskGroupBounds(itemId, symbols, sprites, frame, children, c);
+			bounds = maskGroupData.bounds;
+			c = maskGroupData.index;
+		} else {
+			bounds = computeInstanceBounds(child, symbols, sprites, frame);
+		}
+
 		if (!bounds) {
 			continue;
 		}
 
-		// child bounds
-		var cLeft   = bounds.left;
-		var cTop    = bounds.top;
-		var cRight  = bounds.right;
-		var cBottom = bounds.bottom;
-
-		if (child.maskStart) {
-			// Computing bounding box of masked elements
-
-			// masked bounds
-			var mLeft   = Infinity;
-			var mTop    = Infinity;
-			var mRight  = - Infinity;
-			var mBottom = - Infinity;
-
-			while (!children[--c].maskEnd) {
-				var clippedChild = children[c];
-
-				var clippedBounds = computeInstanceBounds(clippedChild, symbols, sprites, frame);
-				if (!clippedBounds) {
-					continue;
-				}
-
-				var ccLeft   = clippedBounds.left;
-				var ccTop    = clippedBounds.top;
-				var ccRight  = clippedBounds.right;
-				var ccBottom = clippedBounds.bottom;
-
-				var clipWithinOnX = (cLeft <= ccLeft && ccLeft <= cRight)  || (cLeft  <= ccRight  && ccRight  <= cRight);
-				var clipWithinOnY = (cTop  <= ccTop  && ccTop  <= cBottom) || (cTop   <= ccBottom && ccBottom <= cBottom);
-
-				var maskWithinOnX = (ccLeft <= cLeft && cLeft <= ccRight)  || (ccLeft <= cRight  && cRight  <= ccRight);
-				var maskWithinOnY = (ccTop  <= cTop  && cTop  <= ccBottom) || (ccTop  <= cBottom && cBottom <= ccBottom);
-
-				if ((clipWithinOnX || maskWithinOnX) && (maskWithinOnY || clipWithinOnY)) {
-					mLeft   = Math.min(ccLeft,   mLeft);
-					mTop    = Math.min(ccTop,    mTop);
-					mRight  = Math.max(ccRight,  mRight);
-					mBottom = Math.max(ccBottom, mBottom);
-				}
-			}
-
-			cLeft   = Math.max(cLeft,   mLeft);
-			cTop    = Math.max(cTop,    mTop);
-			cRight  = Math.min(cRight,  mRight);
-			cBottom = Math.min(cBottom, mBottom);
-		}
-
-		fLeft   = Math.min(cLeft,   fLeft);
-		fTop    = Math.min(cTop,    fTop);
-		fRight  = Math.max(cRight,  fRight);
-		fBottom = Math.max(cBottom, fBottom);
+		fLeft   = Math.min(bounds.left,   fLeft);
+		fTop    = Math.min(bounds.top,    fTop);
+		fRight  = Math.max(bounds.right,  fRight);
+		fBottom = Math.max(bounds.bottom, fBottom);
 	}
 
 	var frameBounds;

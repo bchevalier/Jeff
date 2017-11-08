@@ -19,7 +19,7 @@ function processSwfObjects(swfObjects, allClasses, extractor) {
 	var classSymbols = addClassNames(symbols, allClasses);
 
 	// Generating symbols' lists of children over time from swfObject timeline
-	generateChildren(symbols, items.itemsById);
+	generateChildren(symbols, sprites, itemsById);
 
 	// Adding animation container, if any
 	if (extractor._options.container) addContainer(symbols, classSymbols, extractor._options.container);

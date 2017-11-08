@@ -1,5 +1,7 @@
 
 var processShape = require('./processShape');
+var elements = require('../elements');
+var Sprite = elements.Sprite;
 
 function interpolateColor(colors, a, b) {
 	var colorA = colors[0];
@@ -47,9 +49,8 @@ function interpolateGradient(gradients, a, b) {
 	};
 }
 
-function createMorphedShape(items, symbol, ratio) {
+function createMorphedShape(items, sprites, symbol, ratio) {
 	/* jshint maxstatements: 100 */
-
 	var symbolMorphings = symbol.morphings;
 	if (!symbolMorphings) {
 		symbolMorphings = {};
@@ -65,16 +66,14 @@ function createMorphedShape(items, symbol, ratio) {
 	symbolMorphings[ratio] = morphId;
 
 	var swfObject = symbol.swfObject;
-	var morphedSymbol = {
-		id:        morphId,
-		isSprite:  true,
-		isShape:   true,
-		isMorphed: true,
-		swfObject: swfObject,
-		maxDims:   {},
-		parents:   []
-	};
-	items.push(morphedSymbol);
+	var morphedSprite = new Sprite();
+	morphedSprite.id        = morphId;
+	morphedSprite.isShape   = true;
+	morphedSprite.isMorphed = true;
+	morphedSprite.swfObject = swfObject;
+
+	items.push(morphedSprite);
+	sprites[morphId] = morphedSprite;
 
 	// interpolating the shape
 	var shapes = [];
@@ -86,12 +85,12 @@ function createMorphedShape(items, symbol, ratio) {
 	var endBounds = swfObject.endBounds;
 	var endEdges  = swfObject.endEdges;
 
-	morphedSymbol.bounds = [{
+	morphedSprite.bounds = {
 		left:   (startBounds.left   * b + endBounds.left   * a) / 20,
 		right:  (startBounds.right  * b + endBounds.right  * a) / 20,
 		top:    (startBounds.top    * b + endBounds.top    * a) / 20,
 		bottom: (startBounds.bottom * b + endBounds.bottom * a) / 20
-	}];
+	};
 
 	var startEdgeOffset = 0;
 	var endEdgeOffset   = 0;
@@ -218,11 +217,11 @@ function createMorphedShape(items, symbol, ratio) {
 		shapes.push(newShape);
 	}
 
-	morphedSymbol.shapes = processShape(shapes);
+	morphedSprite.shapes = processShape(shapes);
 	return morphId;
 }
 
-function generateChildren(symbol, items) {
+function generateChildren(symbol, sprites, items) {
 	/* jshint maxcomplexity: 50 */
 	/* jshint maxstatements: 160 */
 
@@ -282,7 +281,7 @@ function generateChildren(symbol, items) {
 					var ratio = objectData.ratio || 0;
 
 					// Creating a new graphic that correspond to interpolation of the morphing with respect to the given ratio
-					var morphedShapeId = createMorphedShape(items, childItem, ratio);
+					var morphedShapeId = createMorphedShape(items, sprites, childItem, ratio);
 
 					// Replacing symbol id
 					morphedShapeReplacements.push({ depth: depth, morphId: morphedShapeId, originalId: childItem.id });
@@ -510,8 +509,8 @@ function generateChildren(symbol, items) {
 	}
 }
 
-module.exports = function generateAllChildren(symbols, items) {
+module.exports = function generateAllChildren(symbols, sprites, items) {
 	for (var symbolId in symbols) {
-		generateChildren(symbols[symbolId], items);
+		generateChildren(symbols[symbolId], sprites, items);
 	}
 };

@@ -402,6 +402,13 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 
 	symbolIds.sort(function (a, b) { return a - b; });
 
+	var elementIds = symbolIds.slice();
+	for (var spriteId in sprites) {
+		elementIds.push(parseInt(spriteId));
+	}
+
+	elementIds.sort(function (a, b) { return a - b; });
+
 	// "main" symbol placed at the end if exist
 	if (symbolIds[0] === 0) {
 		symbolIds.shift();
@@ -494,7 +501,6 @@ CanvasRenderer.prototype.prerenderSymbols = function (symbols, sprites, imageMap
 	var collapseableSprites = {};
 
 	// List of symbols that can be merged
-	var elementIds = symbolIds.slice();
 	for (s = 0; s < symbolIds.length; s += 1) {
 		symbolId = symbolIds[s];
 		symbol = symbols[symbolId];
@@ -735,7 +741,7 @@ CanvasRenderer.prototype.prerenderMaskedSymbols = function (symbol, symbols, spr
 				maskEndFrame   = child.frames[1];
 			} else {
 				maskStartFrame = Math.min(maskStartFrame, child.frames[0]);
-				maskEndFrame   = Math.max(maskEndFrame,   child.frames[0]);
+				maskEndFrame   = Math.max(maskEndFrame,   child.frames[1]);
 			}
 			continue;
 		}
@@ -805,7 +811,6 @@ CanvasRenderer.prototype.prerenderMaskedSymbols = function (symbol, symbols, spr
 
 		// Temporarily adding mask group symbol to list of symbols for rendering purpose
 		symbols[maskGroupId] = maskGroupSymbol;
-
 		var instance = new SymbolInstance(maskGroupId, maskGroupSymbol.bounds);
 
 		// Creating new symbols, one for each frame of the originally masked sub-animation
