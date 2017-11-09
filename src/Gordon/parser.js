@@ -1,4 +1,5 @@
-// See http://wwwimages.adobe.com/www.adobe.com/content/dam/Adobe/en/devnet/swf/pdf/swf-file-format-spec.pdf
+// See http://wwwimages.adobe.com/www.adobe.com/content/dam/Adobe/en/devnet/swf/pdf/swf-file-format-spec.pdf (could be unavailable)
+// See http://www.schnarff.com/file-formats/flash/swf_file_format_spec_v10.pdf
 
 
 var Base = require('./base.js');

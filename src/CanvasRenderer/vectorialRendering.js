@@ -133,9 +133,16 @@ CanvasRenderer.prototype._outlineShapes = function (context, shapes, transform, 
 		var matrix = fill.matrix;
 		var stops  = fill.stops;
 
-		scaleX = matrix.scaleX === 0 ? 1 : matrix.scaleX;
-		scaleY = matrix.scaleY === 0 ? 1 : matrix.scaleY;
-		transform = multiplyTransforms(transform, [scaleX, matrix.skewX, matrix.skewY, scaleY, matrix.moveX, matrix.moveY]);
+		scaleX = matrix.scaleX;
+		scaleY = matrix.scaleY;
+
+		var skewX = matrix.skewX;
+		var skewY = matrix.skewY;
+		if (scaleX === 0 && scaleY === 0 && skewX === 0 && skewY === 0) {
+			scaleX = 1;
+			scaleY = 1;
+		}
+		transform = multiplyTransforms(transform, [scaleX, skewX, skewY, scaleY, matrix.moveX, matrix.moveY]);
 
 		scale = 1;
 		if (!line.noHScale) {
@@ -214,10 +221,18 @@ CanvasRenderer.prototype._fillShapes = function (context, canvas, shapes, transf
 		this._createPath(context, shapes, transform, false);
 
 		matrix = fill.matrix;
-		var scaleX = matrix.scaleX === 0 ? 1 : matrix.scaleX;
-		var scaleY = matrix.scaleY === 0 ? 1 : matrix.scaleY;
+		var scaleX = matrix.scaleX;
+		var scaleY = matrix.scaleY;
+
+		var skewX = matrix.skewX;
+		var skewY = matrix.skewY;
+		if (scaleX === 0 && scaleY === 0 && skewX === 0 && skewY === 0) {
+			scaleX = 1;
+			scaleY = 1;
+		}
+
 		context.transform(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
-		context.transform(scaleX, matrix.skewX, matrix.skewY, scaleY, matrix.moveX, matrix.moveY);
+		context.transform(scaleX, skewX, skewY, scaleY, matrix.moveX, matrix.moveY);
 
 		var gradient;
 		switch (fill.type) {
