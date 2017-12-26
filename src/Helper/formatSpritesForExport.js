@@ -210,9 +210,7 @@ module.exports = function formatSpritesForExport(getCanvas, spriteImages, sprite
 			);
 		}
 	} else {
-		if (powerOf2Images) {
-			augmentToNextPowerOf2(spriteImages, getCanvas);
-		}
+
 		for (var spriteId in spriteImages) {
 			var image = spriteImages[spriteId];
 			var imageData = findImageData(image, newSpriteImages);
@@ -221,6 +219,10 @@ module.exports = function formatSpritesForExport(getCanvas, spriteImages, sprite
 			} else {
 				newSpriteImages.push(new ImageData(spriteId, spriteImages[spriteId], [spriteId]));
 			}
+		}
+
+		if (powerOf2Images) {
+			augmentToNextPowerOf2(newSpriteImages, getCanvas);
 		}
 	}
 

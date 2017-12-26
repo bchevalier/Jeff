@@ -23,14 +23,15 @@ function cmpColors(a, b) {
 	return a[7] - b[7];
 }
 
-function findMatrixIdx(transforms, transform) {
-	// The transforms are supposed sorted
+
+function findIdx(array, element, cmpFunc) {
+	// The array are supposed sorted
 	// binary search
 	var min = 0;
-	var max = transforms.length - 1;
+	var max = array.length - 1;
 	while (min <= max) {
 		var mid = Math.floor((max + min) / 2);
-		var cmp = cmpTransforms(transforms[mid], transform);
+		var cmp = cmpFunc(array[mid], element);
 		if (cmp === 0) {
 			return mid;
 		}
@@ -41,28 +42,7 @@ function findMatrixIdx(transforms, transform) {
 			max = mid - 1;
 		}
 	}
-	throw new Error('[findMatrixIdx] Matrix index not found : ' + JSON.stringify(transform) + ' : ' + JSON.stringify(transforms));
-}
-
-function findColorIdx(colors, color) {
-	// The colors are supposed sorted
-	// binary search
-	var min = 0;
-	var max = colors.length - 1;
-	while (min <= max) {
-		var mid = Math.floor((max + min) / 2);
-		var cmp = cmpColors(colors[mid], color);
-		if (cmp === 0) {
-			return mid;
-		}
-
-		if (cmp < 0) {
-			min = mid + 1;
-		} else {
-			max = mid - 1;
-		}
-	}
-	throw new Error('[findColorIdx] Color index not found');
+	throw new Error('[findIdx] Element index not found');
 }
 
 function findFilterIdx(filters, filter) {
@@ -178,11 +158,11 @@ function delocateMatrices(exportData) {
 			colors   = child.colors;
 
 			for (t = 0; t < transforms.length; t += 1) {
-				transforms[t] = findMatrixIdx(delocatedTransforms, transforms[t]);
+				transforms[t] = findIdx(delocatedTransforms, transforms[t], cmpTransforms);
 			}
 
 			for (c = 0; c < colors.length; c += 1) {
-				colors[c] = findColorIdx(delocatedColors, colors[c]);
+				colors[c] = findIdx(delocatedColors, colors[c], cmpColors);
 			}
 		}
 	}

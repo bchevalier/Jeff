@@ -22,7 +22,7 @@ function Item () {
 
 function Sprite () {
 	Item.call(this);
-	this.maxDims = new Dimensions();
+	this.maxDims = {}; // map of max dimension per class the sprite belongs to
 
 	this.isImage    = false;
 	this.isShape    = false;
@@ -39,12 +39,14 @@ Sprite.prototype.frameCount = 1;
 function Symbol (frameCount, frameRate, frameSize) {
 	Item.call(this);
 	this.frameCount = frameCount; // frameCount can be optimized to 1 in some cases
-	this.duration = frameCount; // duration cannot be changed
-	this.frameRate = frameRate;
-	this.frameSize = frameSize;
+	this.duration   = frameCount; // duration cannot be changed
+	this.frameRate  = frameRate;
+	this.frameSize  = frameSize;
+
 	this.scalingGrid = null;
+
 	this.children = [];
-	this.bounds = [];
+	this.bounds   = [];
 }
 
 Symbol.prototype.isSymbol = true;

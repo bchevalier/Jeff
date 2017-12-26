@@ -96,7 +96,11 @@ function createItem(id, swfObject) {
 			break;
 
 		// Not handled yet
-		// case 'text':
+		case 'text':
+			// Considering them as empty symbols for now
+			item = new Symbol(1, 1);
+			swfObject.timeline = [];
+			break;
 		// case 'font':
 		default:
 			item = new UnhandledItem(id, swfObject.type);

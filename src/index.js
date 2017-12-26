@@ -352,6 +352,7 @@ Jeff.prototype._extractClassGroup = function (spriteImages, spriteProperties) {
 		exportItemsData = helper.generateFrameByFrameData(this._symbols, spriteProperties, this._options.onlyOneFrame);
 	} else {
 		this._renderer.prerenderSymbols(this._symbols, this._sprites, spriteImages, spriteProperties);
+		this._renderer.prerenderSymbols(this._symbols, this._sprites, spriteImages, spriteProperties);
 		exportItemsData = helper.generateMetaData(this._sprites, this._symbols, spriteProperties, this._frameRates, this._frameRate);
 	}
 

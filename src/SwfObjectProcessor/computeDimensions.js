@@ -50,17 +50,29 @@ function computeSpriteDimension(items, item, transform, frame, originClassName) 
 	frame = frame % frameCount;
 
 	var children = item.children;
-	for (var c1 = 0; c1 < children.length; c1 += 1) {
-		var childData  = children[c1];
+	for (var c = 0; c < children.length; c += 1) {
+		var childData  = children[c];
 		var startFrame = childData.frames[0];
 		var endFrame   = childData.frames[1];
 		var childId    = childData.id;
 		var transforms = childData.transforms;
 
-		if (startFrame <= frame && frame <= endFrame) {
-			var childFrame     = frame - startFrame;
-			var childTransform = multiplyTransforms(transform, transforms[childFrame]);
-			computeSpriteDimension(items, items[childId], childTransform, childFrame, originClassName);
+		var isWithinFrame = startFrame <= frame && frame <= endFrame;
+		if (isWithinFrame) {
+			var item = items[childId];
+			var childFrame      = frame - startFrame;
+			var childTransform  = multiplyTransforms(transform, transforms[childFrame]);
+			var childFrameCount = item.isSprite ? 1 : item.frameCount;
+
+			var isIndpendentAnimation = startFrame === 0 && endFrame === frameCount - 1 && childFrameCount > frameCount;
+			if (isIndpendentAnimation) {
+				// needs to compute dimensions of every frame
+				for (var f = 0; f < childFrameCount; f += 1) {
+					computeSpriteDimension(items, item, childTransform, f, originClassName);
+				}
+			} else {
+				computeSpriteDimension(items, item, childTransform, childFrame, originClassName);
+			}
 		}
 	}
 }
