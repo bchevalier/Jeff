@@ -299,6 +299,10 @@ function factorizeChildrenAt (childIndex, children, sprites, elementOccurences, 
 			continue;
 		}
 
+		if (candidateChild.maskStart && maskContext === 0) {
+			break;
+		}
+
 		var candidateChildId = candidateChild.id;
 		var sprite = sprites[candidateChildId];
 		if (!sprite || sprite.className) {
@@ -376,7 +380,6 @@ function factorizeChildrenAt (childIndex, children, sprites, elementOccurences, 
 		if (!factoredChild.tryAndAddSingleFrameChild(candidateChild, childIndex)) {
 			break;
 		}
-
 
 		if (candidateChild.maskStart) {
 			maskContext -= 1;
